@@ -1,40 +1,44 @@
 import React from 'react';
 import {socket} from '../../../context/socket';
+import { useChatHistorySlice } from '../../../hooks/store/useChatHistorySlice';
+import { useActions } from '../../../hooks/store/useActions';
 interface Props{
 
 }
 
 
-function TextChat({}: Props) {
+const TextChat:React.FC = () => {
   const [message, setMessage] = React.useState<string>("");
-  const [messageReceived, setMessageReceived] = React.useState<string[]>([]);
 
   const sendMessage = () => {
     socket.emit("send-message", message);
-    setMessageReceived([...messageReceived, message]);
+    addMessage(message);
     setMessage("");
   };
 
+  const {chatHistory: messageHistory} = useChatHistorySlice();
+  const {addMessage} = useActions();
   React.useEffect(() => {
     socket.on("receive-message", (message: string) => {
-      setMessageReceived([...messageReceived, message]);
-      console.log(message + "\n-----" + messageReceived);
+      addMessage(message);
     });
   }, [socket]);
 
   return (
     <div>
+      <div>
+      {messageHistory.messages.map((message: string, index: number) => (
+        <h3 key={index}>{message}</h3>
+      ))}
+      </div>
       <input
         type="text"
-        name=""
-        id=""
+        placeholder="Type a message"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
       />
       <button onClick={sendMessage}>Send</button>
-      {messageReceived.map((message: string) => (
-        <h3>{message}</h3>
-      ))}
+      
     </div>
   );
 }
