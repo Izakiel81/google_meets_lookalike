@@ -10,6 +10,10 @@ const VideoChat: FC<Props> = () => {
   const [peers, setPeers] = useState<any>([]);
   const userVideo = useRef<any>();
   const peersRef = useRef<any>([]);
+  const roomID = window.location.href.split('#/')[1];
+  const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
+  const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
+  
 
   const videoConstrains = {
     height: window.innerHeight / 2,
@@ -19,7 +23,7 @@ const VideoChat: FC<Props> = () => {
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ video: videoConstrains, audio: true }).then((stream) => {
         userVideo.current.srcObject = stream;
-        socket.emit("join-room", "12");
+        socket.emit("join-room", roomID);
         socket.on('all-users', users => {
             const peers:any = [];
             users.forEach((userID: string) => {
@@ -76,8 +80,47 @@ const VideoChat: FC<Props> = () => {
     return peer;
   }
 
+  const disconnect = () => {
+    // Close all peer connections
+    peersRef.current.forEach((peer: any) => {
+      peer.peer.destroy();
+    });
+    // Remove local stream
+    if (userVideo.current.srcObject) {
+      const tracks = userVideo.current.srcObject.getTracks();
+      tracks.forEach((track: MediaStreamTrack) => {
+        track.stop();
+      });
+    }
+    // Disconnect socket
+    socket.disconnect();
+  };
+
+  const toggleAudio = () => {
+    const stream = userVideo.current.srcObject;
+    if (stream) {
+      stream.getAudioTracks().forEach((track: MediaStreamTrack) => {
+        track.enabled = !track.enabled;
+      });
+      setIsAudioMuted(!stream.getAudioTracks()[0].enabled);
+    }
+  };
+
+  const toggleVideo = () => {
+    const stream = userVideo.current.srcObject;
+    if (stream) {
+      stream.getVideoTracks().forEach((track: MediaStreamTrack) => {
+        track.enabled = !track.enabled;
+      });
+      setIsVideoMuted(!stream.getVideoTracks()[0].enabled);
+    }
+  };
+
   return (<div>
     <video ref={userVideo} autoPlay playsInline muted />
+    <button onClick={toggleAudio}>{isAudioMuted ? 'Unmute Audio' : 'Mute Audio'}</button>
+      <button onClick={toggleVideo}>{isVideoMuted ? 'Unmute Video' : 'Mute Video'}</button>
+    <button onClick={disconnect}>DISCONNECT</button>
     {peers.map((peer: any, index: number) => (
       <Video key={index} peer={peer} />
     ))}
